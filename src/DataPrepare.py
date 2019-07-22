@@ -3,19 +3,17 @@ import random
 import re
 import os
 import unicodedata
-import codecs
 from io import open
 import itertools
-import math
-import json
-from pathlib import Path
 import spacy
 import tqdm
+import pandas as pd
+from pdb import set_trace
 from numpy.random import choice as random_choice, randint as random_randint
+import random
 from Vocab import Vocab
 import torch
 import config
-import json
 
 
 class Data:
@@ -25,7 +23,9 @@ class Data:
         self.delimiter = config.data['delimiter']
         self.train_file = config.data['training file path']
         self.data_file = config.data['processed file path']
-        self.mistakeDir=config.data['mistakes folder']
+        self.mistakeDir = config.data['mistakes folder']
+        self.cmDist = config.data['confusion matrix dist path']
+        self.maxGenerations = config.data['max incorrect generations per sentence']
         self.nlp=spacy.load("en")
         self.voc = Vocab()
         self.save_dir=None
@@ -63,6 +63,33 @@ class Data:
             else:
                 spelling_mistake_tokens.append(token.lower())
         return " ".join(spelling_mistake_tokens)
+
+    def swap_misclassified_chars(self, a_string, nIterations=5):
+        """Given a string (word), returns a list of strings of length nIterations,
+        where characters in each string is replaced by another character 
+        with probability according to confusion matrix distribution
+        """
+        mistakesDist = pd.read_csv(self.cmDist, index_col=0).T
+        population = list(mistakesDist.columns.values)
+        new_string = ''
+        incorrectVersions = []
+        for _ in range(nIterations):
+            for char in a_string:
+                if char not in population: # char could be ' ' or other special characters like "!"
+                    new_string += char
+                    continue
+                
+                # Randomly replace existing character with new character according to distribution
+                new_char = random_choice(population, size=None, replace=True, p=list(mistakesDist[char]))        
+
+                #if new_char != char:
+                #    print('[INFO] Replacing {} with {}'.format(char, new_char))
+
+                new_string += new_char
+            incorrectVersions.append(new_string)
+            new_string = ''
+        return incorrectVersions
+
 
     def add_noise_to_string(self,a_string):
         """Adds aritificial random noise to a string, returns a list of strings with noise added"""
@@ -119,6 +146,16 @@ class Data:
         s = re.sub(r"\s+", r" ", s).strip()
         return s
 
+    def modifyString(self, sentence):
+        new_sentence = ''
+        for char in sentence:
+            # these special characters are treated as the same class as their upper-case versions
+            if char in ['w', 's', 'o', 'c', 'u', 'i', 'm', 'p', 'v', 'w', 'x', 'y', 'z']:
+                new_sentence += char.upper()
+            else:
+                new_sentence += char
+        return new_sentence
+
     # Read query/response pairs and return a voc object
     def readVocs(self,datafile=None):
         datafile=self.data_file if datafile is None else datafile
@@ -126,8 +163,8 @@ class Data:
         # Read the file and split into lines
         lines = open(datafile, encoding='utf-8').\
             read().strip().split('\n')
-        # Split every line into pairs and normalize
-        pairs = [[self.normalizeString(s) for s in l.split('\t')] for l in lines]
+        # Split every line into pairs
+        pairs = [[s for s in l.split('\t')] for l in lines]
         
         return pairs
 
@@ -150,23 +187,29 @@ class Data:
                 if line.strip() and not line.strip().startswith("="):
                     sentences = self.split_sentences(line.strip())
                     for sentence in sentences:
-                        sentence = self.normalizeString(sentence)
+                        #sentence = self.normalizeString(sentence)
+                        sentence = self.modifyString(sentence)
                         if len(sentence.split()) > self.MIN_LENGTH:
                             dataset.append(sentence)
             return dataset
 
+
+
     def create_pairs(self,dataset):
         inputLines=[]
         outputLines=[]
+
         for line in dataset:
             incorrectSentences=[]
             minWords=min(len(line.split(" ")),3)
             wordList=random_choice(line.split(" "),minWords,False)
             for word in line.split(" "):
                 if word in wordList:
-                    incorrectWords=self.add_noise_to_string(word)
+                    #incorrectWords=self.add_noise_to_string(word)
+                    incorrectWords=self.swap_misclassified_chars(word)
                 else:
                     incorrectWords=[word]
+
                 if len(incorrectSentences)==0:
                     incorrectSentences=incorrectWords
                 else:
@@ -175,15 +218,20 @@ class Data:
                         newSentences.append(' '.join(x))
                     incorrectSentences=list(set(newSentences))
                 
-            incorrectSentences = [self.add_mistakes(text=sent, tokenized=True) for sent in incorrectSentences]
+            #incorrectSentences = [self.add_mistakes(text=sent, tokenized=True) for sent in incorrectSentences]
 
             random.shuffle(incorrectSentences)
-            incorrectSentences=incorrectSentences[:int(0.4*len(incorrectSentences))]
-            # Keep till max length
+            
+            # Cap max no. of incorrect sentences generated per sentence
+            if len(incorrectSentences) > self.maxGenerations:
+                incorrectSentences=incorrectSentences[:self.maxGenerations]
+
+            # Cap each sentence till max length
             input_lines = [sent[:self.MAX_LENGTH] for sent in incorrectSentences]
             output_lines = [line[:self.MAX_LENGTH]]*len(incorrectSentences)
             inputLines+=input_lines
             outputLines+=output_lines
+
         # zip and sort according to length for buckecting
         lines = zip(inputLines,outputLines)
         # lines = sorted(lines, key=lambda x: len(x[1]), reverse=True)
@@ -207,11 +255,11 @@ class Data:
         print("Read {!s} sentence pairs".format(len(pairs)))
         pairs = self.filterPairs(pairs)
         print("Trimmed to {!s} sentence pairs".format(len(pairs)))
-        print("Counting words...")
+        print("[INFO] Counting words...")
         for pair in pairs:
             self.voc.addSentence(pair[0])
             self.voc.addSentence(pair[1])
-        print("Counted words:", self.voc.num_char)
+        print("[INFO] Counted words:", self.voc.num_char)
         return pairs
 
     def trimRareChars(self,pairs, MIN_COUNT):
@@ -258,7 +306,7 @@ class Data:
         
         self.save_dir = os.path.join("data", "save")
         pairs = self.loadPrepareData(self.save_dir)
-        print("\npairs:")
+        print("\npairs: ['Incorrect', 'Ground Truth']")
         
         for pair in pairs[:10]:
             print(pair)

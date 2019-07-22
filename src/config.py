@@ -1,10 +1,13 @@
+
 data={
     'max sentence length':50,
     'min sentence length': 1,
-    'corpus': 'cleanHDB.txt',
-    'training file path':'../corpus/cleanHDB.txt',
-    'processed file path': '../corpus/formatted_cleanHDB.txt',
+    'max incorrect generations per sentence': 20,
+    'corpus': 'sample.txt',
+    'training file path':'../corpus/sample.txt',
+    'processed file path': '../corpus/formatted_sample.txt',
     'mistakes folder':"../spelling-mistakes",
+    'confusion matrix dist path': '../spelling-mistakes/cm-distribution.csv',
     'delimiter': '\t'
 }
 

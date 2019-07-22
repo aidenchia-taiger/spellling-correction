@@ -4,9 +4,10 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 import itertools
-from SpellCorrector.Vocab import Voc
-from SpellCorrector.DataPrepare import *
-from SpellCorrector.Model import *
+from Vocab import Vocab
+from DataPrepare import *
+from Model import *
+
 device = torch.device("cpu")
 USE_CUDA = torch.cuda.is_available()
 # device = torch.device("cuda" if USE_CUDA else "cpu")
