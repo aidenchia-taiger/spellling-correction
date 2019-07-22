@@ -8,17 +8,17 @@ app = flask.Flask(__name__)
 model = None
 import torch
 
-from SpellCorrector.Vocab import Voc
-from SpellCorrector.DataPrepare import *
-from SpellCorrector.Model import Seq2Seq,GreedySearchDecoder
-from SpellCorrector import config
+from Vocab import Vocab
+from DataPrepare import *
+from Model import Seq2Seq,GreedySearchDecoder
+import config
 # device = torch.device("cpu")
 device = torch.device("cpu")
 loadFilename = config.evaluate['loadFilename']
 
 def loadModel(modelFile):
 
-    voc=Voc( config.data['corpus name'])
+    voc = Vocab()
     if modelFile:
         # If loading on same machine the model was trained on
         checkpoint = torch.load(modelFile,map_location='cpu')
@@ -33,7 +33,7 @@ def loadModel(modelFile):
 
     model=Seq2Seq(voc,device)
 
-    print('Building encoder and decoder ...')
+    print('[INFO] Building encoder and decoder ...')
 
     if modelFile:
         model.embedding.load_state_dict(embedding_sd)
@@ -103,7 +103,7 @@ def predict():
   
   
 if __name__ == "__main__": 
-    print(("* Loading Keras model and Flask starting server..."
+    print(("[INFO] Loading Keras model and Flask starting server..."
         "please wait until server has fully started")) 
     # load_model() 
     app.run(debug=True) 
