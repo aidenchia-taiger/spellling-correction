@@ -1,0 +1,6 @@
+Models/*
+corpus/*
+spelling-mistakes/*
+!Models/.gitkeep
+!corpus/.gitkeep
+!spelling-mistakes/.gitkeep
