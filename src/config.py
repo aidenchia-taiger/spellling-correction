@@ -1,14 +1,16 @@
 data={
-    'sentence length':50,
-    'corpus folder': '../corpus',
-    'original data':'cleanHDB.txt',
+    'max sentence length':50,
+    'min sentence length': 1,
+    'corpus': 'cleanHDB.txt',
+    'training file path':'../corpus/cleanHDB.txt',
+    'processed file path': '../corpus/formatted_cleanHDB.txt',
     'mistakes folder':"../spelling-mistakes",
-    
+    'delimiter': '\t'
 }
-data['processed input file']="formatted"+data['original data']
 
 model={
-    'sentence length' :50, # maximum sentence length
+    'sentence length' :50, 
+    'min sentence length': 1, 
     'PAD_token' : 0,  # Used for padding short sentences
     'SOS_token' : 1,  # Start-of-sentence token
     'EOS_token' : 2,  # End-of-sentence token
@@ -31,6 +33,6 @@ model={
 
 }
 evaluate={
-    'loadFilename':"hdb.tar"
+    'loadFilename':"../Models/hdb.tar"
 
 }

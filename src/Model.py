@@ -11,7 +11,7 @@ import torch.nn as nn
 from torch import optim
 import torch.nn.functional as F
 import itertools
-from Vocab import Voc
+from Vocab import Vocab
 from DataPrepare import Data
 import config
 

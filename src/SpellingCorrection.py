@@ -6,7 +6,7 @@ import config
 class SpellingCorrection:
     def __init__(self):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.corpus_name = config.data['corpus folder']
+        self.corpus_name = config.data['corpus']
         self.data=Data()
     
 if __name__=="__main__":

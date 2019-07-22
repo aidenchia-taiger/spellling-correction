@@ -12,7 +12,7 @@ from pathlib import Path
 import spacy
 import tqdm
 from numpy.random import choice as random_choice, randint as random_randint
-from Vocab import Voc
+from Vocab import Vocab
 import torch
 import config
 import json
@@ -20,17 +20,16 @@ import json
 
 class Data:
     def __init__(self):   
-        self.MAX_LENGTH = config.data['sentence length']
-        corpus_name = config.data['corpus folder']
-        corpus = os.path.join(".", corpus_name)
-        fileName=config.data['original data']
-        self.delimiter = '\t'
-        self.train_file=os.path.join(corpus, fileName)
-        self.nlp=spacy.load("en")
+        self.MAX_LENGTH = config.data['max sentence length']
+        self.MIN_LENGTH = config.data['min sentence length']
+        self.delimiter = config.data['delimiter']
+        self.train_file = config.data['training file path']
+        self.data_file = config.data['processed file path']
         self.mistakeDir=config.data['mistakes folder']
-        self.voc=Voc(corpus_name)
-        self.datafile=os.path.join(corpus, config.data['processed input file'])
+        self.nlp=spacy.load("en")
+        self.voc = Vocab()
         self.save_dir=None
+        [print('[INFO] {}: {}'.format(k,v)) for k, v in dict(vars(self)).items()]
 
     def load_spelling_mistakes(self):
         spelling_mistakes = {}
@@ -100,8 +99,6 @@ class Data:
         return incorrectVersions
 
 
-
-
     def printLines(self,file, n=10):
         with open(file, 'rb') as datafile:
             lines = datafile.readlines()
@@ -124,7 +121,7 @@ class Data:
 
     # Read query/response pairs and return a voc object
     def readVocs(self,datafile=None):
-        datafile=self.datafile if datafile is None else datafile
+        datafile=self.data_file if datafile is None else datafile
         print("Reading lines...")
         # Read the file and split into lines
         lines = open(datafile, encoding='utf-8').\
@@ -142,7 +139,7 @@ class Data:
 
     # Splits each line of the file into a dictionary of fields
     def read_data(self,train=True):
-            print("Reading data ... ")
+            print("[INFO] Reading data ... ")
             dataset = []
             if train:
                 lines = open(self.train_file).readlines()
@@ -154,7 +151,7 @@ class Data:
                     sentences = self.split_sentences(line.strip())
                     for sentence in sentences:
                         sentence = self.normalizeString(sentence)
-                        if len(sentence.split()) > 3:
+                        if len(sentence.split()) > self.MIN_LENGTH:
                             dataset.append(sentence)
             return dataset
 
@@ -247,7 +244,7 @@ class Data:
 
     
     def formatDataset(self,datafile=None):
-        datafile=self.datafile if datafile is None else datafile
+        datafile=self.data_file if datafile is None else datafile
         print("\nProcessing corpus...")
         lines = self.read_data()
         
